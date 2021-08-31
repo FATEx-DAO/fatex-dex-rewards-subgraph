@@ -1,0 +1,32 @@
+specVersion: 0.0.2
+description: FATExDAO is a decentralized protocol for automated token exchange on Harmony.
+repository: https://github.com/FATEx-DAO/fatex-dex-subgraph
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: FateRewardController
+    network: mainnet
+    source:
+      address: '0xef1a47106b5B1eb839a2995fb29Fa5a7Ff37Be27'
+      abi: FateRewardControllerProtocol
+      startBlock: 16437500
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      file: ./src/mappings/core.ts
+      entities:
+        - Transaction
+        - Claim
+        - UserEpoch0TotalLockedRewardsByPool
+        - UserEpoch0TotalLockedRewards
+        - RewardsMetadata
+      abis:
+        - name: FateRewardControllerProtocol
+          file: ./abis/fate-reward-controller.json
+        - name: UniswapV2PairProtocol
+          file: ./abis/uniswap-v2-pair.json
+      eventHandlers:
+        - event: ClaimRewards(indexed address,indexed uint256,uint256)
+          handler: handleClaimRewards

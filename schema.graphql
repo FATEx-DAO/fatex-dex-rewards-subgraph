@@ -1,0 +1,42 @@
+type Transaction @entity {
+  id: ID! # txn hash
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Claim @entity {
+  # transactionHash-logIndex
+  id: ID!
+  transaction: Transaction!
+  user: Bytes!
+  poolId: BigInt!
+  amountFate: BigDecimal!
+  amountUSD: BigDecimal!
+}
+
+type UserEpoch0TotalLockedRewardsByPool @entity {
+  # userAddress-poolId
+  id: ID!
+  user: Bytes!
+  poolId: BigInt!
+  amountFate: BigDecimal!
+  amountUSD: BigDecimal!
+}
+
+type UserEpoch0TotalLockedRewards @entity {
+  # userAddress
+  id: ID!
+  user: Bytes!
+  amountFate: BigDecimal!
+  amountUSD: BigDecimal!
+}
+
+type RewardsMetadata @entity {
+  # controller address
+  id: ID!
+
+  claimCount: BigInt!
+  fateClaimed: BigDecimal!
+  fateClaimedUsd: BigDecimal!
+  numberOfUniqueUsers: BigInt!
+}
