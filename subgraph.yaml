@@ -8,7 +8,7 @@ dataSources:
     name: FateRewardController
     network: mainnet
     source:
-      address: '0xef1a47106b5B1eb839a2995fb29Fa5a7Ff37Be27'
+      address: '0xef1a47106b5b1eb839a2995fb29fa5a7ff37be27'
       abi: FateRewardControllerProtocol
       startBlock: 16437500
     mapping:

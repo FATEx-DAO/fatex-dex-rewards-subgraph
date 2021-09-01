@@ -1,10 +1,13 @@
-import { ClaimRewards as ClaimRewardsEvent } from '../types/FateRewardController/FateRewardControllerProtocol'
+import {
+  ClaimRewards as ClaimRewardsEvent,
+  FateRewardControllerProtocol
+} from '../types/FateRewardController/FateRewardControllerProtocol'
 import {
   Transaction,
   Claim,
-  UserEpoch0TotalLockedRewardsByPool,
-  UserEpoch0TotalLockedRewards,
-  RewardsMetadata,
+  UserEpoch0TotalLockedRewardByPool,
+  UserEpoch0TotalLockedReward,
+  RewardMetadata,
 } from '../types/schema'
 import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import { getFatePriceUsd } from './pricing'
@@ -22,15 +25,16 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
   }
 
   let claim = new Claim(event.transaction.hash.toHexString().concat('-').concat(event.logIndex.toString()))
+  claim.timestamp = event.block.timestamp
   claim.transaction = event.transaction.hash.toHexString()
   claim.user = event.params.user
   claim.poolId = event.params.pid
   claim.amountFate = event.params.amount.divDecimal(ONE_ETH_IN_WEI)
-  claim.amountUSD = claim.amountUSD.times(getFatePriceUsd())
+  claim.amountUSD = claim.amountFate.times(getFatePriceUsd())
 
-  let metadata = RewardsMetadata.load(event.address.toHexString())
+  let metadata = RewardMetadata.load(event.address.toHexString())
   if (metadata == null) {
-    metadata = new RewardsMetadata(event.address.toHexString())
+    metadata = new RewardMetadata(event.address.toHexString())
     metadata.claimCount = ZERO_BI
     metadata.fateClaimed = ZERO_BD
     metadata.fateClaimedUsd = ZERO_BD
@@ -40,28 +44,34 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
   metadata.fateClaimed = metadata.fateClaimed.plus(claim.amountFate)
   metadata.fateClaimedUsd = metadata.fateClaimedUsd.plus(claim.amountUSD)
 
-  let userRewardsByPool = UserEpoch0TotalLockedRewardsByPool.load(claim.user.toHexString().concat('-').concat(claim.poolId.toString()))
+  let controllerProtocol = FateRewardControllerProtocol.bind(event.address)
+  let startBlock = controllerProtocol.startBlock()
+  let currentBlock = event.block.number
+  let index = currentBlock.minus(startBlock).div(BigInt.fromI32(302400))
+  let multiplier = index.lt(BigInt.fromI32(13)) ? BigDecimal.fromString('4') : ZERO_BD // the amount locked is 4x the claim amount (due to 80% lock)
+
+  let userRewardsByPool = UserEpoch0TotalLockedRewardByPool.load(claim.user.toHexString().concat('-').concat(claim.poolId.toString()))
   if (userRewardsByPool == null) {
-    userRewardsByPool = new UserEpoch0TotalLockedRewardsByPool(claim.user.toHexString().concat('-').concat(claim.poolId.toString()))
+    userRewardsByPool = new UserEpoch0TotalLockedRewardByPool(claim.user.toHexString().concat('-').concat(claim.poolId.toString()))
     userRewardsByPool.user = claim.user
     userRewardsByPool.poolId = claim.poolId
     userRewardsByPool.amountFate = ZERO_BD
     userRewardsByPool.amountUSD = ZERO_BD
   }
-  userRewardsByPool.amountFate = userRewardsByPool.amountFate.plus(claim.amountFate)
-  userRewardsByPool.amountUSD = userRewardsByPool.amountUSD.plus(claim.amountUSD)
+  userRewardsByPool.amountFate = userRewardsByPool.amountFate.plus(claim.amountFate.times(multiplier))
+  userRewardsByPool.amountUSD = userRewardsByPool.amountUSD.plus(claim.amountUSD.times(multiplier))
 
-  let userRewards = UserEpoch0TotalLockedRewards.load(claim.user.toHexString())
+  let userRewards = UserEpoch0TotalLockedReward.load(claim.user.toHexString())
   let isNewUser = false
   if (userRewards == null) {
     isNewUser = true
-    userRewards = new UserEpoch0TotalLockedRewards(claim.user.toHexString())
+    userRewards = new UserEpoch0TotalLockedReward(claim.user.toHexString())
     userRewards.user = claim.user
     userRewards.amountFate = ZERO_BD
     userRewards.amountUSD = ZERO_BD
   }
-  userRewards.amountFate = userRewards.amountFate.plus(claim.amountFate)
-  userRewards.amountUSD = userRewards.amountFate.plus(claim.amountUSD)
+  userRewards.amountFate = userRewards.amountFate.plus(claim.amountFate.times(multiplier))
+  userRewards.amountUSD = userRewards.amountUSD.plus(claim.amountUSD.times(multiplier))
 
   if (isNewUser) {
     metadata.numberOfUniqueUsers = metadata.numberOfUniqueUsers.plus(ONE_BI)

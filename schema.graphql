@@ -7,6 +7,7 @@ type Transaction @entity {
 type Claim @entity {
   # transactionHash-logIndex
   id: ID!
+  timestamp: BigInt!
   transaction: Transaction!
   user: Bytes!
   poolId: BigInt!
@@ -14,7 +15,7 @@ type Claim @entity {
   amountUSD: BigDecimal!
 }
 
-type UserEpoch0TotalLockedRewardsByPool @entity {
+type UserEpoch0TotalLockedRewardByPool @entity {
   # userAddress-poolId
   id: ID!
   user: Bytes!
@@ -23,7 +24,7 @@ type UserEpoch0TotalLockedRewardsByPool @entity {
   amountUSD: BigDecimal!
 }
 
-type UserEpoch0TotalLockedRewards @entity {
+type UserEpoch0TotalLockedReward @entity {
   # userAddress
   id: ID!
   user: Bytes!
@@ -31,7 +32,7 @@ type UserEpoch0TotalLockedRewards @entity {
   amountUSD: BigDecimal!
 }
 
-type RewardsMetadata @entity {
+type RewardMetadata @entity {
   # controller address
   id: ID!
 
