@@ -7,7 +7,7 @@ import {
   Claim,
   UserEpoch0TotalLockedRewardByPool,
   UserEpoch0TotalLockedReward,
-  RewardMetadata,
+  RewardMetadata, StartBlock
 } from '../types/schema'
 import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import { getFatePriceUsd } from './pricing'
@@ -44,10 +44,16 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
   metadata.fateClaimed = metadata.fateClaimed.plus(claim.amountFate)
   metadata.fateClaimedUsd = metadata.fateClaimedUsd.plus(claim.amountUSD)
 
-  let controllerProtocol = FateRewardControllerProtocol.bind(event.address)
-  let startBlock = controllerProtocol.startBlock()
+  let startBlockEntity = StartBlock.load(event.address.toHexString())
+  if (startBlockEntity == null) {
+    let controllerProtocol = FateRewardControllerProtocol.bind(event.address)
+    startBlockEntity = new StartBlock(event.address.toHexString())
+    startBlockEntity.startBlock = controllerProtocol.startBlock()
+    startBlockEntity.save()
+  }
+
   let currentBlock = event.block.number
-  let index = currentBlock.minus(startBlock).div(BigInt.fromI32(302400))
+  let index = currentBlock.minus(startBlockEntity.startBlock).div(BigInt.fromI32(302400))
   let multiplier = index.lt(BigInt.fromI32(13)) ? BigDecimal.fromString('4') : ZERO_BD // the amount locked is 4x the claim amount (due to 80% lock)
 
   let userRewardsByPool = UserEpoch0TotalLockedRewardByPool.load(claim.user.toHexString().concat('-').concat(claim.poolId.toString()))

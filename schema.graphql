@@ -41,3 +41,10 @@ type RewardMetadata @entity {
   fateClaimedUsd: BigDecimal!
   numberOfUniqueUsers: BigInt!
 }
+
+type StartBlock @entity {
+  # controller address
+  id: ID!
+
+  startBlock: BigInt!
+}
