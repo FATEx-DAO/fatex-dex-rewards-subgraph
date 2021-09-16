@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { BigDecimal, Address } from '@graphprotocol/graph-ts/index'
+import { BigDecimal, Address, log } from '@graphprotocol/graph-ts/index'
 import { ZERO_BD, ADDRESS_ZERO } from './helpers'
 import { UniswapV2PairProtocol } from '../types/FateRewardController/UniswapV2PairProtocol'
 import { BigInt } from '@graphprotocol/graph-ts'
@@ -76,7 +76,13 @@ function getOnePriceInUSD(): BigDecimal {
 
 export function getFatePriceUsd(): BigDecimal {
   let fateOnePair = UniswapV2PairProtocol.bind(Address.fromString(FATE_WONE_PAIR))
-  let fateOneReserves = fateOnePair.getReserves()
+  let fateOneReservesResult = fateOnePair.try_getReserves()
+  if (fateOneReservesResult.reverted) {
+    log.error("Could not get FATE:ONE reserves due to reversion", [])
+    return getFatePriceUsd()
+  }
+
+  let fateOneReserves = fateOneReservesResult.value
   let reserve0 = new BigDecimal(fateOneReserves.value0)
   let reserve1 = new BigDecimal(fateOneReserves.value1)
   let fateOnePrice = reserve1.div(reserve0)
