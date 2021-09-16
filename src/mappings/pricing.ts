@@ -79,7 +79,7 @@ export function getFatePriceUsd(): BigDecimal {
   let fateOneReservesResult = fateOnePair.try_getReserves()
   if (fateOneReservesResult.reverted) {
     log.error("Could not get FATE:ONE reserves due to reversion", [])
-    return getFatePriceUsd()
+    return ZERO_BD
   }
 
   let fateOneReserves = fateOneReservesResult.value
