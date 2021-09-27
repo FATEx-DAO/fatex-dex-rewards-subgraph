@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
-import { BigDecimal, Address, log } from '@graphprotocol/graph-ts/index'
-import { ZERO_BD, ADDRESS_ZERO } from './helpers'
+import { Address, BigDecimal, log } from '@graphprotocol/graph-ts/index'
+import { ADDRESS_ZERO, ZERO_BD } from './helpers'
 import { UniswapV2PairProtocol } from '../types/FateRewardController/UniswapV2PairProtocol'
 import { BigInt } from '@graphprotocol/graph-ts'
 
@@ -26,15 +26,30 @@ function getOnePriceInUSD(): BigDecimal {
 
   // all 3 have been created
   if (usdcPair !== null && busdPair !== null && usdtPair !== null) {
-    let usdcReserves = usdcPair.getReserves()
+    let usdcReservesCall = usdcPair.try_getReserves()
+    if (usdcReservesCall.reverted) {
+      log.error('Could not get ONE:USDC reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let usdcReserves = usdcReservesCall.value
     let usdcReserve0 = new BigDecimal(usdcReserves.value0.times(BigInt.fromI32(10).pow(12)))
     let usdcReserve1 = new BigDecimal(usdcReserves.value1)
 
-    let busdReserves = busdPair.getReserves()
+    let busdReservesCall = busdPair.try_getReserves()
+    if (busdReservesCall.reverted) {
+      log.error('Could not get ONE:BUSD reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let busdReserves = busdReservesCall.value
     let busdReserve0 = new BigDecimal(busdReserves.value0)
     let busdReserve1 = new BigDecimal(busdReserves.value1)
 
-    let usdtReserves = usdtPair.getReserves()
+    let usdtReservesCall = usdtPair.try_getReserves()
+    if (usdtReservesCall.reverted) {
+      log.error('Could not get ONE:USDT reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let usdtReserves = busdReservesCall.value
     let usdtReserve0 = new BigDecimal(usdtReserves.value0.times(BigInt.fromI32(10).pow(12)))
     let usdtReserve1 = new BigDecimal(usdtReserves.value1)
 
@@ -48,11 +63,21 @@ function getOnePriceInUSD(): BigDecimal {
       .plus(usdtReserve0.div(usdtReserve1).times(usdtWeight))
     // dai and USDC have been created
   } else if (usdcPair !== null && busdPair !== null) {
-    let usdcReserves = usdcPair.getReserves()
+    let usdcReservesCall = usdcPair.try_getReserves()
+    if (usdcReservesCall.reverted) {
+      log.error('Could not get ONE:USDC reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let usdcReserves = usdcReservesCall.value
     let usdcReserve0 = new BigDecimal(usdcReserves.value0.times(BigInt.fromI32(10).pow(12)))
     let usdcReserve1 = new BigDecimal(usdcReserves.value1)
 
-    let busdReserves = busdPair.getReserves()
+    let busdReservesCall = busdPair.try_getReserves()
+    if (busdReservesCall.reverted) {
+      log.error('Could not get ONE:BUSD reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let busdReserves = busdReservesCall.value
     let busdReserve0 = new BigDecimal(busdReserves.value0)
     let busdReserve1 = new BigDecimal(busdReserves.value1)
 
@@ -64,7 +89,12 @@ function getOnePriceInUSD(): BigDecimal {
       .plus(busdReserve1.div(busdReserve0).times(busdWeight))
     // USDC is the only pair so far
   } else if (usdcPair !== null) {
-    let usdcReserves = usdcPair.getReserves()
+    let usdcReservesCall = usdcPair.try_getReserves()
+    if (usdcReservesCall.reverted) {
+      log.error('Could not get ONE:USDC reserves due to reversion', [])
+      return ZERO_BD
+    }
+    let usdcReserves = usdcReservesCall.value
     let usdcReserve0 = new BigDecimal(usdcReserves.value0.times(BigInt.fromI32(10).pow(12)))
     let usdcReserve1 = new BigDecimal(usdcReserves.value1)
 
@@ -78,7 +108,7 @@ export function getFatePriceUsd(): BigDecimal {
   let fateOnePair = UniswapV2PairProtocol.bind(Address.fromString(FATE_WONE_PAIR))
   let fateOneReservesResult = fateOnePair.try_getReserves()
   if (fateOneReservesResult.reverted) {
-    log.error("Could not get FATE:ONE reserves due to reversion", [])
+    log.error('Could not get FATE:ONE reserves due to reversion', [])
     return ZERO_BD
   }
 
