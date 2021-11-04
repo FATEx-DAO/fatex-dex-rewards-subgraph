@@ -30,3 +30,29 @@ dataSources:
       eventHandlers:
         - event: ClaimRewards(indexed address,indexed uint256,uint256)
           handler: handleClaimRewards
+  - kind: ethereum/contract
+    name: FateRewardControllerV2
+    network: mainnet
+    source:
+      address: '0x04170495ea41288225025de3cdfe9a9799121861'
+      abi: FateRewardControllerProtocol
+      startBlock: 18999292
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      file: ./src/mappings/core.ts
+      entities:
+        - Transaction
+        - Claim
+        - UserEpoch0TotalLockedRewardsByPool
+        - UserEpoch0TotalLockedRewards
+        - RewardsMetadata
+      abis:
+        - name: FateRewardControllerProtocol
+          file: ./abis/fate-reward-controller.json
+        - name: UniswapV2PairProtocol
+          file: ./abis/uniswap-v2-pair.json
+      eventHandlers:
+        - event: ClaimRewards(indexed address,indexed uint256,uint256)
+          handler: handleClaimRewards
