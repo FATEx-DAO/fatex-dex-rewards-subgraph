@@ -30,6 +30,8 @@ dataSources:
       eventHandlers:
         - event: ClaimRewards(indexed address,indexed uint256,uint256)
           handler: handleClaimRewards
+        - event: Deposit(indexed address,indexed uint256,uint256)
+          handler: handleDeposit
   - kind: ethereum/contract
     name: FateRewardControllerV2
     network: mainnet
@@ -56,3 +58,5 @@ dataSources:
       eventHandlers:
         - event: ClaimRewards(indexed address,indexed uint256,uint256)
           handler: handleClaimRewards
+        - event: Deposit(indexed address,indexed uint256,uint256)
+          handler: handleDeposit

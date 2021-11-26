@@ -1,5 +1,6 @@
 import {
   ClaimRewards as ClaimRewardsEvent,
+  Deposit as DepositEvent,
   FateRewardControllerProtocol
 } from '../types/FateRewardController/FateRewardControllerProtocol'
 import {
@@ -14,6 +15,54 @@ import { getFatePriceUsd } from './pricing'
 import { ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
 
 let ONE_ETH_IN_WEI = BigDecimal.fromString('1000000000000000000')
+
+export function handleDeposit(event: DepositEvent): void {
+  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  if (transaction == null) {
+    transaction = new Transaction(event.transaction.hash.toHexString())
+    transaction.blockNumber = event.block.number
+    transaction.timestamp = event.block.timestamp
+    transaction.save()
+  }
+
+  let user = event.params.user
+  let poolId = event.params.pid
+
+  let userRewardsByPool = UserEpoch0TotalLockedRewardByPool.load(user.toHexString().concat('-').concat(poolId.toString()))
+  if (userRewardsByPool == null) {
+    userRewardsByPool = new UserEpoch0TotalLockedRewardByPool(user.toHexString().concat('-').concat(poolId.toString()))
+    userRewardsByPool.user = user
+    userRewardsByPool.poolId = poolId
+    userRewardsByPool.amountFate = ZERO_BD
+    userRewardsByPool.amountUSD = ZERO_BD
+    userRewardsByPool.save()
+  }
+
+  let userRewards = UserEpoch0TotalLockedReward.load(user.toHexString())
+  let isNewUser = false
+  if (userRewards == null) {
+    isNewUser = true
+    userRewards = new UserEpoch0TotalLockedReward(user.toHexString())
+    userRewards.user = user
+    userRewards.amountFate = ZERO_BD
+    userRewards.amountUSD = ZERO_BD
+    userRewards.save()
+  }
+
+  let metadata = RewardMetadata.load(event.address.toHexString())
+  if (metadata == null) {
+    metadata = new RewardMetadata(event.address.toHexString())
+    metadata.claimCount = ZERO_BI
+    metadata.fateClaimed = ZERO_BD
+    metadata.fateClaimedUsd = ZERO_BD
+    metadata.numberOfUniqueUsers = ZERO_BI
+  }
+
+  if (isNewUser) {
+    metadata.numberOfUniqueUsers = metadata.numberOfUniqueUsers.plus(ONE_BI)
+    metadata.save()
+  }
+}
 
 export function handleClaimRewards(event: ClaimRewardsEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
