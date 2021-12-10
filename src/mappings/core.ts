@@ -4,11 +4,12 @@ import {
   FateRewardControllerProtocol
 } from '../types/FateRewardController/FateRewardControllerProtocol'
 import {
-  Transaction,
   Claim,
-  UserEpochTotalLockedRewardByPool,
+  RewardMetadata,
+  StartBlock,
+  Transaction,
   UserEpochTotalLockedReward,
-  RewardMetadata, StartBlock
+  UserEpochTotalLockedRewardByPool
 } from '../types/schema'
 import { BigDecimal, BigInt, EthereumEvent } from '@graphprotocol/graph-ts'
 import { getFatePriceUsd } from './pricing'
@@ -17,12 +18,55 @@ import { Bytes } from '@graphprotocol/graph-ts/index'
 
 let ONE_ETH_IN_WEI = BigDecimal.fromString('1000000000000000000')
 
-function getIdByUserAndPool(user: Bytes, poolId: BigInt, epoch: BigInt): string {
-  return user.toHexString().concat('-').concat(poolId.toString()).concat('-').concat(epoch.toString())
+class UserRewardsByPoolWrapper {
+  userRewardsByPool: UserEpochTotalLockedRewardByPool
+  isNew: boolean
+
+  constructor(userRewardsByPool: UserEpochTotalLockedRewardByPool, isNew: boolean) {
+    this.userRewardsByPool = userRewardsByPool
+    this.isNew = isNew
+  }
 }
 
-function getIdByUser(user: Bytes, epoch: BigInt): string {
-  return user.toHexString().concat('-').concat(epoch.toString())
+class UserRewardsWrapper {
+  userRewards: UserEpochTotalLockedReward
+  isNew: boolean
+
+  constructor(userRewards: UserEpochTotalLockedReward, isNew: boolean) {
+    this.userRewards = userRewards
+    this.isNew = isNew
+  }
+}
+
+function getRewardsByUserAndPool(user: Bytes, poolId: BigInt, epoch: BigInt): UserRewardsByPoolWrapper {
+  let id = user.toHexString().concat('-').concat(poolId.toString()).concat('-').concat(epoch.toString())
+  let userRewardsByPool = UserEpochTotalLockedRewardByPool.load(id)
+  let isNew = false
+  if (userRewardsByPool == null) {
+    isNew = true
+    userRewardsByPool = new UserEpochTotalLockedRewardByPool(id)
+    userRewardsByPool.user = user
+    userRewardsByPool.poolId = poolId
+    userRewardsByPool.epoch = epoch.toI32()
+    userRewardsByPool.amountFate = ZERO_BD
+    userRewardsByPool.amountUSD = ZERO_BD
+  }
+  return new UserRewardsByPoolWrapper(userRewardsByPool as UserEpochTotalLockedRewardByPool, isNew)
+}
+
+function getRewardsByUser(user: Bytes, epoch: BigInt): UserRewardsWrapper {
+  let id = user.toHexString().concat('-').concat(epoch.toString())
+  let userRewards = UserEpochTotalLockedReward.load(id)
+  let isNew = false
+  if (userRewards == null) {
+    isNew = true
+    userRewards = new UserEpochTotalLockedReward(id)
+    userRewards.user = user
+    userRewards.epoch = epoch.toI32()
+    userRewards.amountFate = ZERO_BD
+    userRewards.amountUSD = ZERO_BD
+  }
+  return new UserRewardsWrapper(userRewards as UserEpochTotalLockedReward, isNew)
 }
 
 function getOrFindStartBlock(event: EthereumEvent): BigInt {
@@ -80,30 +124,18 @@ export function handleDeposit(event: DepositEvent): void {
   let poolId = event.params.pid
   let epoch = mapEpochIndexToEpoch(calculateEpochIndex(event))
 
-  let userRewardsByPool = UserEpochTotalLockedRewardByPool.load(getIdByUserAndPool(user, poolId, epoch))
-  if (userRewardsByPool == null) {
-    userRewardsByPool = new UserEpochTotalLockedRewardByPool(getIdByUserAndPool(user, poolId, epoch))
-    userRewardsByPool.user = user
-    userRewardsByPool.poolId = poolId
-    userRewardsByPool.amountFate = ZERO_BD
-    userRewardsByPool.amountUSD = ZERO_BD
-    userRewardsByPool.save()
+  let userRewardsByPoolWrapper = getRewardsByUserAndPool(user, poolId, epoch)
+  if (userRewardsByPoolWrapper.isNew) {
+    userRewardsByPoolWrapper.userRewardsByPool.save()
   }
 
-  let userRewards = UserEpochTotalLockedReward.load(getIdByUser(user, epoch))
-  let isNewUser = false
-  if (userRewards == null) {
-    isNewUser = true
-    userRewards = new UserEpochTotalLockedReward(getIdByUser(user, epoch))
-    userRewards.user = user
-    userRewards.amountFate = ZERO_BD
-    userRewards.amountUSD = ZERO_BD
-    userRewards.save()
+  let userRewardsWrapper = getRewardsByUser(user, epoch)
+  if (userRewardsWrapper.isNew) {
+    userRewardsWrapper.userRewards.save()
   }
 
   let metadata = getOrCreateMetadata()
-
-  if (isNewUser) {
+  if (userRewardsWrapper.isNew) {
     metadata.numberOfUniqueUsers = metadata.numberOfUniqueUsers.plus(ONE_BI)
     metadata.save()
   }
@@ -119,11 +151,6 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
   claim.poolId = event.params.pid
   claim.amountFate = event.params.amount.divDecimal(ONE_ETH_IN_WEI)
   claim.amountUSD = claim.amountFate.times(getFatePriceUsd())
-
-  let metadata = getOrCreateMetadata()
-  metadata.claimCount = metadata.claimCount.plus(ONE_BI)
-  metadata.fateClaimed = metadata.fateClaimed.plus(claim.amountFate)
-  metadata.fateClaimedUsd = metadata.fateClaimedUsd.plus(claim.amountUSD)
 
   let index = calculateEpochIndex(event)
   let epoch = mapEpochIndexToEpoch(index)
@@ -148,30 +175,21 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
     lockDivisor = ONE_BD
   }
 
-  let userRewardsByPool = UserEpochTotalLockedRewardByPool.load(getIdByUserAndPool(claim.user, claim.poolId, epoch))
-  if (userRewardsByPool == null) {
-    userRewardsByPool = new UserEpochTotalLockedRewardByPool(getIdByUserAndPool(claim.user, claim.poolId, epoch))
-    userRewardsByPool.user = claim.user
-    userRewardsByPool.poolId = claim.poolId
-    userRewardsByPool.amountFate = ZERO_BD
-    userRewardsByPool.amountUSD = ZERO_BD
-  }
+  let userRewardsByPoolWrapper = getRewardsByUserAndPool(claim.user, claim.poolId, epoch)
+  let userRewardsByPool = userRewardsByPoolWrapper.userRewardsByPool
   userRewardsByPool.amountFate = userRewardsByPool.amountFate.plus(claim.amountFate.times(lockMultiplier).div(lockDivisor))
   userRewardsByPool.amountUSD = userRewardsByPool.amountUSD.plus(claim.amountUSD.times(lockMultiplier).div(lockDivisor))
 
-  let userRewards = UserEpochTotalLockedReward.load(getIdByUser(claim.user, epoch))
-  let isNewUser = false
-  if (userRewards == null) {
-    isNewUser = true
-    userRewards = new UserEpochTotalLockedReward(getIdByUser(claim.user, epoch))
-    userRewards.user = claim.user
-    userRewards.amountFate = ZERO_BD
-    userRewards.amountUSD = ZERO_BD
-  }
+  let userRewardsWrapper = getRewardsByUser(claim.user, epoch)
+  let userRewards = userRewardsWrapper.userRewards
   userRewards.amountFate = userRewards.amountFate.plus(claim.amountFate.times(lockMultiplier).div(lockDivisor))
   userRewards.amountUSD = userRewards.amountUSD.plus(claim.amountUSD.times(lockMultiplier).div(lockDivisor))
 
-  if (isNewUser) {
+  let metadata = getOrCreateMetadata()
+  metadata.claimCount = metadata.claimCount.plus(ONE_BI)
+  metadata.fateClaimed = metadata.fateClaimed.plus(claim.amountFate)
+  metadata.fateClaimedUsd = metadata.fateClaimedUsd.plus(claim.amountUSD)
+  if (userRewardsWrapper.isNew) {
     metadata.numberOfUniqueUsers = metadata.numberOfUniqueUsers.plus(ONE_BI)
   }
 
