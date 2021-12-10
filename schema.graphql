@@ -15,19 +15,21 @@ type Claim @entity {
   amountUSD: BigDecimal!
 }
 
-type UserEpoch0TotalLockedRewardByPool @entity {
+type UserEpochTotalLockedRewardByPool @entity {
   # userAddress-poolId
   id: ID!
   user: Bytes!
+  epoch: Int!
   poolId: BigInt!
   amountFate: BigDecimal!
   amountUSD: BigDecimal!
 }
 
-type UserEpoch0TotalLockedReward @entity {
+type UserEpochTotalLockedReward @entity {
   # userAddress
   id: ID!
   user: Bytes!
+  epoch: Int!
   amountFate: BigDecimal!
   amountUSD: BigDecimal!
 }
