@@ -175,15 +175,17 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
     lockDivisor = ONE_BD
   }
 
+  let maxDecimals = 18
+
   let userRewardsByPoolWrapper = getRewardsByUserAndPool(claim.user, claim.poolId, epoch)
   let userRewardsByPool = userRewardsByPoolWrapper.userRewardsByPool
-  userRewardsByPool.amountFate = userRewardsByPool.amountFate.plus(claim.amountFate.times(lockMultiplier).div(lockDivisor))
-  userRewardsByPool.amountUSD = userRewardsByPool.amountUSD.plus(claim.amountUSD.times(lockMultiplier).div(lockDivisor))
+  userRewardsByPool.amountFate = calculateTotalLockedAmount(userRewardsByPool.amountFate, claim.amountFate, lockMultiplier, lockDivisor)
+  userRewardsByPool.amountUSD = calculateTotalLockedAmount(userRewardsByPool.amountUSD, claim.amountUSD, lockMultiplier, lockDivisor)
 
   let userRewardsWrapper = getRewardsByUser(claim.user, epoch)
   let userRewards = userRewardsWrapper.userRewards
-  userRewards.amountFate = userRewards.amountFate.plus(claim.amountFate.times(lockMultiplier).div(lockDivisor))
-  userRewards.amountUSD = userRewards.amountUSD.plus(claim.amountUSD.times(lockMultiplier).div(lockDivisor))
+  userRewards.amountFate = calculateTotalLockedAmount(userRewards.amountFate, claim.amountFate, lockMultiplier, lockDivisor)
+  userRewards.amountUSD = calculateTotalLockedAmount(userRewards.amountUSD, claim.amountUSD, lockMultiplier, lockDivisor)
 
   let metadata = getOrCreateMetadata()
   metadata.claimCount = metadata.claimCount.plus(ONE_BI)
@@ -197,4 +199,13 @@ export function handleClaimRewards(event: ClaimRewardsEvent): void {
   userRewardsByPool.save()
   userRewards.save()
   claim.save()
+}
+
+function calculateTotalLockedAmount(
+  summedAmount: BigDecimal,
+  claimAmount: BigDecimal,
+  multiplier: BigDecimal,
+  divisor: BigDecimal
+): BigDecimal {
+  return summedAmount.plus(claimAmount.times(multiplier).div(divisor).truncate(18))
 }
