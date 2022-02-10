@@ -88,7 +88,7 @@ function calculateEpochIndex(event: EthereumEvent): BigInt {
 function mapEpochIndexToEpoch(index: BigInt): BigInt {
   if (index.lt(BigInt.fromI32(13))) {
     return ZERO_BI
-  } else if (index.lt(BigInt.fromI32(21))) {
+  } else if (index.lt(BigInt.fromI32(29))) {
     return ONE_BI
   } else {
     return TWO_BI
